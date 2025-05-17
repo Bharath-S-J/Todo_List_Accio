@@ -8,11 +8,12 @@ function addItem() {
   const name = document.getElementById("item-name").value.trim();
   const date = document.getElementById("deadline").value;
   const priority = document.getElementById("priority").value;
-  if (!name || !date || priority == "Priority") return;
+  if (!name || !date || priority === "Priority") return;
 
   todoList.push({ name, date, priority, completed: false });
   saveList();
   renderTasks();
+
   document.getElementById("item-name").value = "";
   document.getElementById("deadline").value = "";
   document.getElementById("priority").value = "Priority";
@@ -35,63 +36,74 @@ function renderTasks() {
   const futureEl = document.getElementById("future-tasks");
   const completedEl = document.getElementById("completed-tasks");
 
-  todayEl.innerHTML = futureEl.innerHTML = completedEl.innerHTML = "";
+  todayEl.innerHTML = "";
+  futureEl.innerHTML = "";
+  completedEl.innerHTML = "";
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString('en-CA');
 
-  const sortedList = todoList.slice().sort((a, b) => {
-    const p = { high: 1, medium: 2, low: 3 };
-    return p[a.priority] - p[b.priority];
-  });
+  // Separate tasks into categories
+  const todayTasks = todoList.filter(task => !task.completed && task.date === today);
+  const futureTasks = todoList.filter(task => !task.completed && task.date > today);
+  const completedTasks = todoList.filter(task => task.completed);
 
-  let todayCount = 1, futureCount = 1, completedCount = 1;
+  // Priority order for sorting
+  const priorityOrder = { high: 1, medium: 2, low: 3 };
 
-  sortedList.forEach((task, index) => {
+  // Sort each category by priority
+  todayTasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  futureTasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  completedTasks.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+  // Helper to create task div with buttons
+  function createTaskDiv(task, index, number, categoryEl, completed = false) {
     const taskDiv = document.createElement("div");
     taskDiv.className = "task";
+    if (completed) taskDiv.classList.add("completed-task");
 
     taskDiv.innerHTML = `
-      <div class="task-number">${task.completed ? completedCount : (task.date === today ? todayCount : futureCount)}.</div>
+      <div class="task-number">${number}.</div>
       <div class="task-name">${task.name}</div>
       <div class="task-date">${task.date}</div>
-      <div class="task-priority"> Priority: ${task.priority.toUpperCase()}</div>
+      <div class="task-priority">Priority: ${task.priority.toUpperCase()}</div>
     `;
 
-    // Buttons
+    // Delete button
     const delBtn = document.createElement("button");
     delBtn.className = "icon-btn";
     delBtn.innerHTML = "🗑️";
     delBtn.title = "Delete Task";
     delBtn.onclick = () => deleteItem(index);
 
-    if (task.completed) {
-      taskDiv.classList.add("completed-task");
-      taskDiv.appendChild(delBtn);
-      completedEl.appendChild(taskDiv);
-      completedCount++;
-    } else if (task.date === today) {
+    taskDiv.appendChild(delBtn);
+
+    // Complete button only for uncompleted tasks
+    if (!completed) {
       const checkBtn = document.createElement("button");
       checkBtn.className = "icon-btn";
       checkBtn.innerHTML = "✅";
       checkBtn.title = "Mark as Complete";
       checkBtn.onclick = () => toggleComplete(index);
-
       taskDiv.appendChild(checkBtn);
-      taskDiv.appendChild(delBtn);
-      todayEl.appendChild(taskDiv);
-      todayCount++;
-    } else if (task.date > today) {
-      const checkBtn = document.createElement("button");
-      checkBtn.className = "icon-btn";
-      checkBtn.innerHTML = "✅";
-      checkBtn.title = "Mark as Complete";
-      checkBtn.onclick = () => toggleComplete(index);
-
-      taskDiv.appendChild(checkBtn);
-      taskDiv.appendChild(delBtn);
-      futureEl.appendChild(taskDiv);
-      futureCount++;
     }
+
+    categoryEl.appendChild(taskDiv);
+  }
+
+  // Render each category with numbering and original index reference
+  todayTasks.forEach((task, i) => {
+    const originalIndex = todoList.indexOf(task);
+    createTaskDiv(task, originalIndex, i + 1, todayEl);
+  });
+
+  futureTasks.forEach((task, i) => {
+    const originalIndex = todoList.indexOf(task);
+    createTaskDiv(task, originalIndex, i + 1, futureEl);
+  });
+
+  completedTasks.forEach((task, i) => {
+    const originalIndex = todoList.indexOf(task);
+    createTaskDiv(task, originalIndex, i + 1, completedEl, true);
   });
 }
 
